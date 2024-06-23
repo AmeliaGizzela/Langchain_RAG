@@ -12,6 +12,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 from langchain.prompts import PromptTemplate
+import os
+from pathlib import Path
 
 app = Flask(__name__)
 
@@ -93,6 +95,63 @@ def askPDFPost():
     result = rag_chain.invoke({"input": query})
 
     return jsonify(result)
+
+@app.route("/ask_pdf_selected", methods=["POST"])
+def search():
+    json_content = request.json
+    filename = json_content.get("fn")
+    print(f"file name: {filename}")
+
+    # Find all files from directory
+    for path, folders, files in os.walk(folder_path):
+        # List contain of folder
+        for folder_name in folders:
+            if filename in folder_name:
+                print(f"Content of '{filename}'")
+                print(os.listdir(f"{folder_path}/{filename}"))
+                print()
+
+                print("Post /ask_pdf called")
+                query = json_content.get("query")
+                print(f"question: {query}")
+
+                userdata = {}
+                groq_api_key = userdata.get('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')
+
+                print("Loading vector store")
+                vector_store = Chroma(
+                    persist_directory=filename, 
+                    embedding_function=embedding,
+                    )
+
+                retriever = vector_store.as_retriever()
+
+                llm = ChatGroq(
+                        groq_api_key=groq_api_key,
+                        model_name='mixtral-8x7b-32768'
+                )
+                # Define the RAG template and chain
+                rag_template = """Answer the question based only on the following context:
+                {context}
+                Question: {question}
+                """
+                rag_prompt = ChatPromptTemplate.from_template(rag_template)
+
+                rag_chain = (
+                    {"context": retriever, "question": RunnablePassthrough()}
+                    | rag_prompt
+                    | llm
+                    | StrOutputParser()
+                )
+
+                # Test the architecture with a simple hard coded question
+                result = rag_chain.invoke({"input": query})
+                print(result)
+            # else:
+            #     print("File tidak dapat ditemukan!!") 
+
+    return jsonify(result)
+    
 
 
 @app.route("/pdf", methods=["POST"])
