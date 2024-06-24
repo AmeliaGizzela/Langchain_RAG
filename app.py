@@ -54,47 +54,79 @@ def aiPost():
     return response_answer
 
 
-@app.route("/ask_pdf", methods=["POST"])
+@app.route("/ask_pdf_all", methods=["POST"])
 def askPDFPost():
-    print("Post /ask_pdf called")
-    json_content = request.json
-    query = json_content.get("query")
+    # index = 0
+    # print(len(folder_path))
+    # lst = os.listdir(folder_path) # your directory path
+    # number_files = len(os.listdir(folder_path))
+    # print(len(next(os.walk(folder_path))[1]))
+    # folder_counter = sum([len(folder) for r, d, folder in os.walk(folder_path)])
+    # print(folder_counter)
 
-    print(f"query: {query}")
+    # looping subfolder ada berapa
+    folder_count = 0
+    for folders in os.listdir(folder_path):
+        if os.path.isdir(os.path.join(folder_path, folders)):  # if it's a directory
+            folder_count += 1  # increment counter
 
-    userdata = {}
-    groq_api_key = userdata.get('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')
+    print("There are {} folders".format(folder_count))
 
-    print("Loading vector store")
-    vector_store = Chroma(
-        persist_directory=folder_path, 
-        embedding_function=embedding,
-        )
+    index = 0
+    for file_name in os.listdir(folder_path):
+        if os.path.isdir(os.path.join(folder_path, file_name)):  # if it's a directory
+    # for index < len(folder_path):
+    # for index in range(len(folder_path)):
+            print()
+            print()
+            # file_name = folder_path[index] # index 0 -> file_name = alice
+            file_path = os.path.join("db", file_name) # file_path = db/alice
+            print(f"Pada file {file_name}")
 
-    retriever = vector_store.as_retriever()
+            # Kodingan LLM nya
+            json_content = request.json
+            query = json_content.get("query")
+            print(f"Jawaban dari pertanyaan : {query}")
+            print()
 
-    llm = ChatGroq(
-            groq_api_key=groq_api_key,
-            model_name='mixtral-8x7b-32768'
-    )
-    # Define the RAG template and chain
-    rag_template = """Answer the question based only on the following context:
-    {context}
-    Question: {question}
-    """
-    rag_prompt = ChatPromptTemplate.from_template(rag_template)
+            userdata = {}
+            groq_api_key = userdata.get('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')
 
-    rag_chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
-        | rag_prompt
-        | llm
-        | StrOutputParser()
-    )
+            print("Loading vector store")
+            vector_store = Chroma(
+                persist_directory=file_path, 
+                embedding_function=embedding,
+                )
 
-    # Test the architecture with a simple hard coded question
-    result = rag_chain.invoke({"input": query})
+            retriever = vector_store.as_retriever()
+
+            llm = ChatGroq(
+                    groq_api_key=groq_api_key,
+                    model_name='mixtral-8x7b-32768'
+            )
+            
+            # Define the RAG template and chain
+            rag_template = """Answer the question based only on the following context:
+            {context}
+            Question: {question}
+            """
+            rag_prompt = ChatPromptTemplate.from_template(rag_template)
+
+            rag_chain = (
+                {"context": retriever, "question": RunnablePassthrough()}
+                | rag_prompt
+                | llm
+                | StrOutputParser()
+            )
+
+            # Test the architecture with a simple hard coded question
+            result = rag_chain.invoke({"input": query})
+            print(result)
+
+            index += 1  # increment counter
 
     return jsonify(result)
+    # return jsonify (folder_count)
 
 @app.route("/ask_pdf_selected", methods=["POST"])
 def search():
@@ -145,9 +177,6 @@ def search():
         # Test the architecture with a simple hard coded question
         result = rag_chain.invoke({"input": query})
         print(result)
-
-    else:
-        print("File does not exist")
 
     return jsonify(result)
 
